@@ -1523,23 +1523,20 @@ body.mode-brief #flip-btn       { display: none; }
 .brief-content a:hover { color: #fff; }
 
 @keyframes glitch-seq {
-  0%   { filter: saturate(0) brightness(0.5); }
-  10%  { filter: hue-rotate(90deg) contrast(4) brightness(3); transform: skewX(4deg); }
-  12%  { filter: brightness(0.1); transform: none; }
-  25%  { filter: hue-rotate(200deg) invert(0.8); transform: translateX(6px); }
-  27%  { filter: brightness(0.05); transform: none; }
-  40%  { filter: blur(6px) brightness(0.02); }
-  44%  { filter: brightness(6); }
-  46%  { filter: none; transform: none; }
-  60%  { filter: hue-rotate(300deg) contrast(3) saturate(8); transform: skewX(-3deg); }
-  62%  { filter: none; transform: none; }
-  78%  { filter: blur(16px) brightness(0.01); }
-  82%  { filter: brightness(2); }
-  84%  { filter: none; }
-  100% { filter: none; transform: none; }
+  0%   { filter: saturate(0) brightness(0.4); }
+  8%   { filter: saturate(0) brightness(0.3); transform: skewX(3deg) translateX(4px); }
+  12%  { filter: hue-rotate(90deg) saturate(0.5) brightness(0.35); transform: skewX(-2deg); }
+  20%  { filter: blur(2px) brightness(0.25); transform: translateX(-3px); }
+  28%  { filter: hue-rotate(200deg) saturate(0.3) brightness(0.3); transform: skewX(1.5deg) translateY(2px); }
+  35%  { filter: blur(8px) brightness(0.15); transform: none; }
+  45%  { filter: blur(12px) brightness(0.08); }
+  55%  { filter: blur(20px) brightness(0.05); transform: none; }
+  65%  { filter: blur(30px) brightness(0.03); }
+  80%  { filter: blur(40px) brightness(0.01); }
+  100% { filter: blur(50px) brightness(0); transform: none; }
 }
 body.glitching {
-  animation: glitch-seq 1.2s ease-in-out forwards;
+  animation: glitch-seq 1.8s ease-in-out forwards;
   pointer-events: none;
 }
 
