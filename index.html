@@ -243,13 +243,16 @@
 </head>
 <body>
 
-<header class="header">
+<canvas id="bgCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;"></canvas>
+<div id="mouseGlow" style="position:fixed;width:280px;height:280px;border-radius:50%;pointer-events:none;z-index:0;background:radial-gradient(circle,rgba(79,195,247,0.06) 0%,rgba(120,80,220,0.03) 40%,transparent 70%);transform:translate(-50%,-50%);transition:left 0.8s cubic-bezier(.2,.8,.3,1),top 0.8s cubic-bezier(.2,.8,.3,1);left:-200px;top:-200px;"></div>
+
+<header class="header" style="position:relative;z-index:1;">
   <h1>67 Websites and Tools for 67 Senators</h1>
   <p>AI is enabling weird new things. This website compiles 67 websites and 67 personalized software applications for each Minnesota state senator, made in an afternoon.</p>
   <p>Expect 80% accuracy with a side of hallucinated drivel.</p>
 </header>
 
-<div class="filter-section">
+<div class="filter-section" style="position:relative;z-index:1;">
   <input
     type="text"
     class="filter-input"
@@ -261,12 +264,12 @@
   <div class="filter-count" id="filterCount">Showing 67 of 67</div>
 </div>
 
-<main class="grid-section">
+<main class="grid-section" style="position:relative;z-index:1;">
   <div class="grid" id="senatorGrid">
   </div>
 </main>
 
-<footer class="footer">
+<footer class="footer" style="position:relative;z-index:1;">
   <p>Built with Claude (Anthropic) by a single human operator. All source data is publicly available. No senator endorsed, requested, or was consulted about any of this. Content is AI-generated and should be independently verified before any real-world use.</p>
 </footer>
 
@@ -392,6 +395,238 @@ function filterGrid() {
 
 buildGrid();
 document.getElementById("filterInput").addEventListener("input", filterGrid);
+</script>
+
+<script>
+(function() {
+  var canvas = document.getElementById('bgCanvas');
+  var ctx = canvas.getContext('2d');
+  var W, H, t = 0;
+  var mouse = { x: -500, y: -500 };
+  var glow = document.getElementById('mouseGlow');
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  document.addEventListener('mousemove', function(e) {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    glow.style.left = e.clientX + 'px';
+    glow.style.top = e.clientY + 'px';
+  });
+
+  // --- MORPHING BLOBS ---
+  var blobs = [];
+  var blobColors = [
+    [79, 195, 247],   // cyan
+    [156, 80, 220],   // violet
+    [247, 120, 100],  // coral
+    [80, 220, 160],   // mint
+    [220, 180, 60],   // amber
+    [200, 80, 160],   // magenta
+  ];
+  for (var b = 0; b < 6; b++) {
+    blobs.push({
+      x: Math.random() * 1.2 - 0.1,
+      y: Math.random() * 1.2 - 0.1,
+      r: 60 + Math.random() * 100,
+      col: blobColors[b % blobColors.length],
+      speed: 0.0002 + Math.random() * 0.0004,
+      freqX: 0.7 + Math.random() * 1.6,
+      freqY: 0.5 + Math.random() * 1.8,
+      phaseX: Math.random() * Math.PI * 2,
+      phaseY: Math.random() * Math.PI * 2,
+      morphSpeed: 0.001 + Math.random() * 0.002,
+      morphPhase: Math.random() * Math.PI * 2,
+      points: 5 + Math.floor(Math.random() * 3),
+    });
+  }
+
+  function drawBlob(blob, time) {
+    var cx = blob.x * W + Math.sin(time * blob.freqX + blob.phaseX) * W * 0.15;
+    var cy = blob.y * H + Math.cos(time * blob.freqY + blob.phaseY) * H * 0.12;
+    var morph = Math.sin(time * blob.morphSpeed * 100 + blob.morphPhase);
+    var r = blob.r + morph * 30;
+    var pts = blob.points;
+
+    ctx.beginPath();
+    for (var i = 0; i <= pts * 3; i++) {
+      var angle = (i / pts) * Math.PI * 2;
+      var wobble = Math.sin(angle * 3 + time * 0.8 + blob.morphPhase) * 0.3
+                 + Math.sin(angle * 5 - time * 1.2) * 0.15
+                 + Math.cos(angle * 2 + time * 0.5 + blob.phaseX) * 0.2;
+      var dist = r * (1 + wobble);
+      var px = cx + Math.cos(angle) * dist;
+      var py = cy + Math.sin(angle) * dist;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    var alpha = 0.025 + Math.sin(time * 0.3 + blob.phaseX) * 0.01;
+    ctx.fillStyle = 'rgba(' + blob.col[0] + ',' + blob.col[1] + ',' + blob.col[2] + ',' + alpha + ')';
+    ctx.filter = 'blur(40px)';
+    ctx.fill();
+    ctx.filter = 'none';
+  }
+
+  // --- FLOATING GEOMETRY ---
+  var shapes = [];
+  var shapeTypes = ['tri', 'ring', 'hex', 'diamond'];
+  for (var s = 0; s < 18; s++) {
+    shapes.push({
+      x: Math.random(),
+      y: Math.random(),
+      size: 3 + Math.random() * 8,
+      type: shapeTypes[s % shapeTypes.length],
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.01,
+      driftX: (Math.random() - 0.5) * 0.15,
+      driftY: -0.05 - Math.random() * 0.15,
+      alpha: 0.06 + Math.random() * 0.08,
+      col: blobColors[Math.floor(Math.random() * blobColors.length)],
+      phase: Math.random() * Math.PI * 2,
+      // uncanny motion: acceleration changes
+      jerkX: (Math.random() - 0.5) * 0.4,
+      jerkY: (Math.random() - 0.5) * 0.3,
+    });
+  }
+
+  function drawShape(sh, time) {
+    var wobbleX = Math.sin(time * 0.7 + sh.phase) * sh.jerkX
+                + Math.sin(time * 1.9 + sh.phase * 2) * sh.jerkX * 0.5;
+    var wobbleY = Math.cos(time * 0.5 + sh.phase) * sh.jerkY
+                + Math.cos(time * 2.3 - sh.phase) * sh.jerkY * 0.4;
+    var px = (sh.x * W + wobbleX * 40 + time * sh.driftX * 8) % (W + 40) - 20;
+    var py = (sh.y * H + wobbleY * 30 + time * sh.driftY * 6) % (H + 40) - 20;
+    if (py < -20) { sh.y = 1.05; py = H + 10; }
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(sh.rot + time * sh.rotSpeed * 10 + Math.sin(time * 0.3 + sh.phase) * 0.5);
+    ctx.globalAlpha = sh.alpha * (0.6 + Math.sin(time * 0.4 + sh.phase) * 0.4);
+    ctx.strokeStyle = 'rgb(' + sh.col[0] + ',' + sh.col[1] + ',' + sh.col[2] + ')';
+    ctx.lineWidth = 0.8;
+
+    var sz = sh.size + Math.sin(time * 0.6 + sh.phase) * 2;
+
+    if (sh.type === 'tri') {
+      ctx.beginPath();
+      for (var i = 0; i < 3; i++) {
+        var a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+        ctx[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(a) * sz, Math.sin(a) * sz);
+      }
+      ctx.closePath(); ctx.stroke();
+    } else if (sh.type === 'ring') {
+      ctx.beginPath();
+      ctx.arc(0, 0, sz, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (sh.type === 'hex') {
+      ctx.beginPath();
+      for (var i = 0; i < 6; i++) {
+        var a = (i / 6) * Math.PI * 2;
+        ctx[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(a) * sz, Math.sin(a) * sz);
+      }
+      ctx.closePath(); ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -sz); ctx.lineTo(sz * 0.6, 0);
+      ctx.lineTo(0, sz); ctx.lineTo(-sz * 0.6, 0);
+      ctx.closePath(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // --- CONFETTI ---
+  var confetti = [];
+  var confettiTimer = 0;
+  var confettiInterval = 400 + Math.random() * 600;
+
+  function spawnConfetti() {
+    var cx = Math.random() * W;
+    var cy = Math.random() * H * 0.3;
+    var count = 4 + Math.floor(Math.random() * 6);
+    var burstCol = blobColors[Math.floor(Math.random() * blobColors.length)];
+    for (var i = 0; i < count; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var vel = 0.4 + Math.random() * 1.2;
+      confetti.push({
+        x: cx,
+        y: cy,
+        vx: Math.cos(angle) * vel,
+        vy: Math.sin(angle) * vel - 0.5,
+        rot: Math.random() * Math.PI * 2,
+        rotV: (Math.random() - 0.5) * 0.15,
+        w: 2 + Math.random() * 4,
+        h: 1.5 + Math.random() * 2,
+        col: [
+          burstCol[0] + Math.floor((Math.random() - 0.5) * 40),
+          burstCol[1] + Math.floor((Math.random() - 0.5) * 40),
+          burstCol[2] + Math.floor((Math.random() - 0.5) * 40)
+        ],
+        life: 1,
+        decay: 0.003 + Math.random() * 0.004,
+        gravity: 0.008 + Math.random() * 0.008,
+        flutter: Math.random() * Math.PI * 2,
+        flutterSpeed: 0.02 + Math.random() * 0.04,
+      });
+    }
+  }
+
+  function updateConfetti() {
+    for (var i = confetti.length - 1; i >= 0; i--) {
+      var c = confetti[i];
+      c.vy += c.gravity;
+      c.vx += Math.sin(c.flutter) * 0.02;
+      c.flutter += c.flutterSpeed;
+      c.x += c.vx;
+      c.y += c.vy;
+      c.rot += c.rotV;
+      c.life -= c.decay;
+      if (c.life <= 0) { confetti.splice(i, 1); continue; }
+
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot);
+      ctx.globalAlpha = c.life * 0.35;
+      ctx.fillStyle = 'rgb(' + c.col[0] + ',' + c.col[1] + ',' + c.col[2] + ')';
+      ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+      ctx.restore();
+    }
+  }
+
+  // --- MAIN LOOP ---
+  function frame() {
+    t++;
+    var time = t * 0.016;
+    ctx.clearRect(0, 0, W, H);
+
+    // blobs
+    for (var i = 0; i < blobs.length; i++) {
+      drawBlob(blobs[i], time);
+    }
+
+    // shapes
+    for (var i = 0; i < shapes.length; i++) {
+      drawShape(shapes[i], time);
+    }
+
+    // confetti
+    confettiTimer++;
+    if (confettiTimer >= confettiInterval) {
+      spawnConfetti();
+      confettiTimer = 0;
+      confettiInterval = 300 + Math.random() * 800;
+    }
+    updateConfetti();
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
 </script>
 
 </body>
