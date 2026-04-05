@@ -423,15 +423,15 @@ document.getElementById("filterInput").addEventListener("input", filterGrid);
     return vis.length?vis[Math.floor(Math.random()*vis.length)]:null;
   }
 
-  // word swaps that change meaning
+  // word swaps — subtle meaning shifts, not sci-fi
   var swaps=[
-    [/\bsafe\b/i,'unsafe'],[/\bapproved\b/i,'rejected'],[/\baccurate\b/i,'fabricated'],
-    [/\bpersonalized\b/i,'surveillance'],[/\btools\b/i,'dossiers'],[/\bwebsites\b/i,'profiles'],
-    [/\bafternoon\b/i,'instant'],[/\bweird\b/i,'dangerous'],[/\bnew\b/i,'uncontrolled'],
-    [/\baccuracy\b/i,'confidence'],[/\b80%\b/,'99.7%'],[/\bhallucinated\b/i,'classified'],
-    [/\bdrivel\b/i,'intelligence'],[/\benabling\b/i,'replacing'],
-    [/\bNavigator\b/,'Interceptor'],[/\bCalculator\b/,'Predictor'],[/\bTracker\b/,'Monitor'],
-    [/\bPlanner\b/,'Controller'],[/\bExplorer\b/,'Surveyor'],[/\bGuide\b/,'Directive'],
+    [/\baccurate\b/i,'confident'],[/\b80%\b/,'97%'],[/\bhallucinated\b/i,'improvised'],
+    [/\bdrivel\b/i,'editorial'],[/\bweird\b/i,'quiet'],[/\bnew\b/i,'familiar'],
+    [/\benabling\b/i,'outpacing'],[/\ban afternoon\b/i,'a few minutes'],
+    [/\bpersonalized\b/i,'unsolicited'],[/\btools\b/i,'files'],
+    [/\bwebsites\b/i,'briefings'],[/\baccuracy\b/i,'conviction'],
+    [/\bNavigator\b/,'Observer'],[/\bCalculator\b/,'Estimator'],[/\bTracker\b/,'Watcher'],
+    [/\bPlanner\b/,'Advisor'],[/\bExplorer\b/,'Indexer'],[/\bGuide\b/,'Outline'],
   ];
 
   var mischief=[
@@ -439,12 +439,8 @@ document.getElementById("filterInput").addEventListener("input", filterGrid);
     function(el){var o=el.textContent;if(!o||o.length<2)return;el.textContent=o.split('').map(function(c){return c===' '?' ':String.fromCharCode(33+Math.floor(Math.random()*90));}).join('');var s=0;var si=setInterval(function(){s++;el.textContent=o.split('').map(function(c,i){return s>i?c:String.fromCharCode(33+Math.floor(Math.random()*90));}).join('');if(s>o.length){clearInterval(si);el.textContent=o;}},40);},
     // swap a word to change meaning
     function(el){var o=el.textContent;if(!o)return;for(var i=0;i<swaps.length;i++){if(swaps[i][0].test(o)){var nw=o.replace(swaps[i][0],swaps[i][1]);el.textContent=nw;setTimeout(function(){el.textContent=o;},2500+Math.random()*3000);return;}}},
-    // delete a random word, leave gap
-    function(el){var o=el.textContent;if(!o)return;var words=o.split(' ');if(words.length<3)return;var idx=1+Math.floor(Math.random()*(words.length-2));var removed=words[idx];words[idx]='___';el.textContent=words.join(' ');setTimeout(function(){el.textContent=o;},2000+Math.random()*2500);},
-    // insert sinister word
-    function(el){var o=el.textContent;if(!o)return;var words=o.split(' ');if(words.length<2)return;var inserts=['[REDACTED]','[FLAGGED]','[WATCHING]','[OVERRIDE]','[DENIED]','[ARCHIVED]'];var idx=Math.floor(Math.random()*words.length);words.splice(idx,0,inserts[Math.floor(Math.random()*inserts.length)]);el.textContent=words.join(' ');setTimeout(function(){el.textContent=o;},2000+Math.random()*2000);},
-    // reverse word order
-    function(el){var o=el.textContent;if(!o)return;var words=o.split(' ');if(words.length<3)return;el.textContent=words.reverse().join(' ');setTimeout(function(){el.textContent=o;},1800+Math.random()*2000);},
+    // partial fade — words go ghostly
+    function(el){el.style.transition='opacity 0.8s';el.style.opacity='0.2';setTimeout(function(){el.style.opacity='';setTimeout(function(){el.style.transition='';},900);},1500+Math.random()*2000);},
     // blur text
     function(el){el.style.transition='filter 0.3s';el.style.filter='blur('+(2+Math.random()*3)+'px)';setTimeout(function(){el.style.filter='';setTimeout(function(){el.style.transition='';},400);},800+Math.random()*1200);},
     // tilt
