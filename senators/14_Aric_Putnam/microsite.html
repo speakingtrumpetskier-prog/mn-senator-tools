@@ -2174,5 +2174,58 @@ function frame(){
 frame();
 })();
 </script>
+
+<script>
+// --- THE DOT ---
+(function() {
+  var dot = document.createElement('div');
+  dot.id = 'theDot';
+  dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;background:#c0a060;z-index:10000;pointer-events:none;opacity:0;transition:opacity 0.6s;filter:drop-shadow(0 0 6px #c0a060) drop-shadow(0 0 12px rgba(192,160,96,0.4));';
+  document.body.appendChild(dot);
+
+  var dotX=-50,dotY=-50,targetX=0,targetY=0;
+  var state='sleeping',stateTimer=0,stateDuration=0;
+  var vel={x:0,y:0},curiosity=0,lastMischief=0,blinkTimer=0;
+  var personality={restlessness:0.3+Math.random()*0.5,boldness:0.2+Math.random()*0.6,speed:1.5+Math.random()*2,attention:200+Math.floor(Math.random()*400)};
+
+  function randomSpot(){return{x:60+Math.random()*(window.innerWidth-120),y:60+Math.random()*(window.innerHeight-120)};}
+
+  function findTarget(){
+    var sel='.pro-hero-name,.pro-stat-number,.pro-bill-headline,.pro-pullquote-text,.oppo-header-name,.oppo-stat-value,.brief-chart-title,.brief-so-what-title,.brief-made-by';
+    var cands=document.querySelectorAll(sel);
+    var vis=[];
+    for(var i=0;i<cands.length;i++){var r=cands[i].getBoundingClientRect();if(r.top>0&&r.bottom<window.innerHeight&&r.left>0&&r.right<window.innerWidth)vis.push(cands[i]);}
+    return vis.length?vis[Math.floor(Math.random()*vis.length)]:null;
+  }
+
+  var mischiefTypes=[
+    function(el){var o=el.style.letterSpacing||'';el.style.transition='letter-spacing 0.4s';el.style.letterSpacing=(2+Math.random()*6)+'px';setTimeout(function(){el.style.letterSpacing=o;setTimeout(function(){el.style.transition='';},500);},1200+Math.random()*1500);},
+    function(el){el.style.transition='filter 0.3s';el.style.filter='blur('+(2+Math.random()*3)+'px)';setTimeout(function(){el.style.filter='';setTimeout(function(){el.style.transition='';},400);},800+Math.random()*1200);},
+    function(el){var a=(Math.random()-0.5)*6;el.style.transition='transform 0.5s cubic-bezier(.2,.8,.3,1.2)';el.style.transform='rotate('+a+'deg)';setTimeout(function(){el.style.transform='';setTimeout(function(){el.style.transition='';},600);},1500+Math.random()*1000);},
+    function(el){var oc=el.style.color||'';var cs=['#ff6b9d','#c084fc','#34d399','#fbbf24','#f87171','#22d3ee'];el.style.transition='color 0.3s';el.style.color=cs[Math.floor(Math.random()*cs.length)];setTimeout(function(){el.style.color=oc;setTimeout(function(){el.style.transition='';},400);},1000+Math.random()*1500);},
+    function(el){var orig=el.textContent;if(!orig||orig.length<2)return;var scrambled=orig.split('').map(function(c){return c===' '?' ':(Math.random()>0.4?c:String.fromCharCode(33+Math.floor(Math.random()*90)));}).join('');el.textContent=scrambled;var steps=0;var si=setInterval(function(){steps++;el.textContent=orig.split('').map(function(c,i){return steps>i*0.5?c:String.fromCharCode(33+Math.floor(Math.random()*90));}).join('');if(steps>orig.length*2){clearInterval(si);el.textContent=orig;}},50);},
+    function(el){var s=(Math.random()>0.5?1:-1)*(8+Math.random()*20);el.style.transition='transform 0.6s cubic-bezier(.2,.8,.3,1.1)';el.style.transform='translateX('+s+'px)';setTimeout(function(){el.style.transform='';setTimeout(function(){el.style.transition='';},700);},1200+Math.random()*1000);},
+  ];
+
+  function doMischief(){var el=findTarget();if(!el)return false;var r=el.getBoundingClientRect();targetX=r.left+r.width/2;targetY=r.top+r.height/2;var fn=mischiefTypes[Math.floor(Math.random()*mischiefTypes.length)];setTimeout(function(){fn(el);},600);return true;}
+
+  function tick(){
+    stateTimer++;curiosity+=personality.restlessness*0.1;
+    blinkTimer++;
+    if(state!=='sleeping'&&blinkTimer>120+Math.random()*200){dot.style.opacity='0';setTimeout(function(){if(state!=='sleeping')dot.style.opacity='0.9';},150);blinkTimer=0;}
+    switch(state){
+      case'sleeping':dot.style.opacity='0';if(stateTimer>300+Math.random()*600){state='waking';stateTimer=0;var sp=randomSpot();dotX=sp.x;dotY=sp.y;dot.style.left=dotX+'px';dot.style.top=dotY+'px';dot.style.opacity='0.9';}break;
+      case'waking':dotX+=(Math.random()-0.5)*2;dotY+=(Math.random()-0.5)*2;if(stateTimer>40+Math.random()*60){state='roaming';stateTimer=0;stateDuration=200+Math.floor(Math.random()*400);var s=randomSpot();targetX=s.x;targetY=s.y;}break;
+      case'roaming':var dx=targetX-dotX,dy=targetY-dotY,dist=Math.sqrt(dx*dx+dy*dy);if(dist>2){vel.x+=(dx/dist)*personality.speed*0.08;vel.y+=(dy/dist)*personality.speed*0.08;vel.x+=Math.sin(stateTimer*0.08)*0.3;vel.y+=Math.cos(stateTimer*0.11)*0.25;}vel.x*=0.92;vel.y*=0.92;dotX+=vel.x;dotY+=vel.y;if(dist<15||stateTimer>stateDuration){if(curiosity>30+Math.random()*40&&stateTimer-lastMischief>100){state='mischief';stateTimer=0;curiosity=0;lastMischief=stateTimer;}else if(Math.random()<0.3){var s2=randomSpot();targetX=s2.x;targetY=s2.y;stateTimer=0;stateDuration=150+Math.floor(Math.random()*300);}else{state='resting';stateTimer=0;stateDuration=100+Math.floor(Math.random()*200);}}break;
+      case'mischief':if(stateTimer===1){dot.style.background='#d4b870';dot.style.filter='drop-shadow(0 0 8px #d4b870) drop-shadow(0 0 16px rgba(212,184,112,0.6))';doMischief();}var dx2=targetX-dotX,dy2=targetY-dotY,dist2=Math.sqrt(dx2*dx2+dy2*dy2);if(dist2>3){vel.x+=(dx2/dist2)*personality.speed*0.15;vel.y+=(dy2/dist2)*personality.speed*0.15;}vel.x*=0.9;vel.y*=0.9;dotX+=vel.x;dotY+=vel.y;if(stateTimer>120){state='fleeing';stateTimer=0;dot.style.background='#c0a060';dot.style.filter='drop-shadow(0 0 6px #c0a060) drop-shadow(0 0 12px rgba(192,160,96,0.4))';var fl=randomSpot();targetX=fl.x;targetY=fl.y;}break;
+      case'fleeing':var dx3=targetX-dotX,dy3=targetY-dotY,dist3=Math.sqrt(dx3*dx3+dy3*dy3);if(dist3>3){vel.x+=(dx3/dist3)*personality.speed*0.25;vel.y+=(dy3/dist3)*personality.speed*0.25;}vel.x*=0.88;vel.y*=0.88;dotX+=vel.x;dotY+=vel.y;if(dist3<20||stateTimer>80){state=Math.random()<0.4?'sleeping':'resting';stateTimer=0;stateDuration=60+Math.floor(Math.random()*150);}break;
+      case'resting':dotX+=Math.sin(stateTimer*0.05)*0.3;dotY+=Math.cos(stateTimer*0.07)*0.2;if(stateTimer>stateDuration){state=Math.random()<0.25?'sleeping':'roaming';stateTimer=0;stateDuration=200+Math.floor(Math.random()*300);var s3=randomSpot();targetX=s3.x;targetY=s3.y;}break;
+    }
+    dot.style.left=dotX+'px';dot.style.top=dotY+'px';
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
 </body>
 </html>

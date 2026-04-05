@@ -395,6 +395,302 @@ function filterGrid() {
 
 buildGrid();
 document.getElementById("filterInput").addEventListener("input", filterGrid);
+
+// --- THE DOT ---
+(function() {
+  var dot = document.createElement('div');
+  dot.id = 'theDot';
+  dot.style.cssText = 'position:fixed;width:8px;height:8px;border-radius:50%;background:#4fc3f7;z-index:10000;pointer-events:none;opacity:0;transition:opacity 0.6s;filter:drop-shadow(0 0 6px #4fc3f7) drop-shadow(0 0 12px rgba(79,195,247,0.4));';
+  document.body.appendChild(dot);
+
+  var dotX = -50, dotY = -50;
+  var targetX = 0, targetY = 0;
+  var state = 'sleeping'; // sleeping, waking, roaming, mischief, fleeing, resting
+  var stateTimer = 0;
+  var stateDuration = 0;
+  var vel = { x: 0, y: 0 };
+  var curiosity = 0; // builds over time
+  var lastMischief = 0;
+  var blinkTimer = 0;
+  var personality = {
+    restlessness: 0.3 + Math.random() * 0.5,
+    boldness: 0.2 + Math.random() * 0.6,
+    speed: 1.5 + Math.random() * 2,
+    attention: 200 + Math.floor(Math.random() * 400),
+  };
+
+  // pick a random spot on screen
+  function randomSpot() {
+    return {
+      x: 60 + Math.random() * (window.innerWidth - 120),
+      y: 60 + Math.random() * (window.innerHeight - 120)
+    };
+  }
+
+  // find a text element to mess with
+  function findTarget() {
+    var candidates = document.querySelectorAll('.card-name a, .card-tool, .card-meta, .header h1, .header p, .filter-count');
+    var visible = [];
+    for (var i = 0; i < candidates.length; i++) {
+      var r = candidates[i].getBoundingClientRect();
+      if (r.top > 0 && r.bottom < window.innerHeight && r.left > 0 && r.right < window.innerWidth) {
+        visible.push(candidates[i]);
+      }
+    }
+    return visible.length ? visible[Math.floor(Math.random() * visible.length)] : null;
+  }
+
+  // mischief behaviors
+  var mischiefTypes = [
+    // nudge letters apart
+    function(el) {
+      var orig = el.style.letterSpacing || '';
+      el.style.transition = 'letter-spacing 0.4s';
+      el.style.letterSpacing = (2 + Math.random() * 6) + 'px';
+      setTimeout(function() {
+        el.style.letterSpacing = orig;
+        setTimeout(function() { el.style.transition = ''; }, 500);
+      }, 1200 + Math.random() * 1500);
+    },
+    // blur text briefly
+    function(el) {
+      el.style.transition = 'filter 0.3s';
+      el.style.filter = 'blur(' + (2 + Math.random() * 3) + 'px)';
+      setTimeout(function() {
+        el.style.filter = '';
+        setTimeout(function() { el.style.transition = ''; }, 400);
+      }, 800 + Math.random() * 1200);
+    },
+    // tilt text
+    function(el) {
+      var angle = (Math.random() - 0.5) * 6;
+      el.style.transition = 'transform 0.5s cubic-bezier(.2,.8,.3,1.2)';
+      el.style.transform = 'rotate(' + angle + 'deg)';
+      setTimeout(function() {
+        el.style.transform = '';
+        setTimeout(function() { el.style.transition = ''; }, 600);
+      }, 1500 + Math.random() * 1000);
+    },
+    // color shift
+    function(el) {
+      var origColor = el.style.color || '';
+      var colors = ['#ff6b9d', '#c084fc', '#34d399', '#fbbf24', '#f87171', '#22d3ee'];
+      el.style.transition = 'color 0.3s';
+      el.style.color = colors[Math.floor(Math.random() * colors.length)];
+      setTimeout(function() {
+        el.style.color = origColor;
+        setTimeout(function() { el.style.transition = ''; }, 400);
+      }, 1000 + Math.random() * 1500);
+    },
+    // scramble text briefly
+    function(el) {
+      var orig = el.textContent;
+      if (!orig || orig.length < 2) return;
+      var chars = orig.split('');
+      var scrambled = chars.map(function(c) {
+        return c === ' ' ? ' ' : (Math.random() > 0.4 ? c : String.fromCharCode(33 + Math.floor(Math.random() * 90)));
+      }).join('');
+      el.textContent = scrambled;
+      var steps = 0;
+      var unscramble = setInterval(function() {
+        steps++;
+        var partial = chars.map(function(c, idx) {
+          return steps > idx * 0.5 ? c : String.fromCharCode(33 + Math.floor(Math.random() * 90));
+        }).join('');
+        el.textContent = partial;
+        if (steps > chars.length * 2) {
+          clearInterval(unscramble);
+          el.textContent = orig;
+        }
+      }, 50);
+    },
+    // push text sideways
+    function(el) {
+      var shift = (Math.random() > 0.5 ? 1 : -1) * (8 + Math.random() * 20);
+      el.style.transition = 'transform 0.6s cubic-bezier(.2,.8,.3,1.1)';
+      el.style.transform = 'translateX(' + shift + 'px)';
+      setTimeout(function() {
+        el.style.transform = '';
+        setTimeout(function() { el.style.transition = ''; }, 700);
+      }, 1200 + Math.random() * 1000);
+    },
+  ];
+
+  function doMischief() {
+    var el = findTarget();
+    if (!el) return false;
+    var r = el.getBoundingClientRect();
+    targetX = r.left + r.width / 2;
+    targetY = r.top + r.height / 2;
+    var fn = mischiefTypes[Math.floor(Math.random() * mischiefTypes.length)];
+    // move to target first, then act
+    setTimeout(function() { fn(el); }, 600);
+    return true;
+  }
+
+  function tick() {
+    stateTimer++;
+    curiosity += personality.restlessness * 0.1;
+
+    // blink
+    blinkTimer++;
+    if (state !== 'sleeping') {
+      if (blinkTimer > 120 + Math.random() * 200) {
+        dot.style.opacity = '0';
+        setTimeout(function() { if (state !== 'sleeping') dot.style.opacity = '0.9'; }, 150);
+        blinkTimer = 0;
+      }
+    }
+
+    switch (state) {
+      case 'sleeping':
+        dot.style.opacity = '0';
+        if (stateTimer > 300 + Math.random() * 600) {
+          // wake up
+          state = 'waking';
+          stateTimer = 0;
+          var spot = randomSpot();
+          dotX = spot.x; dotY = spot.y;
+          dot.style.left = dotX + 'px';
+          dot.style.top = dotY + 'px';
+          dot.style.opacity = '0.9';
+          dot.style.width = '6px';
+          dot.style.height = '6px';
+          // grow in
+          setTimeout(function() {
+            dot.style.transition = 'width 0.4s, height 0.4s, opacity 0.6s';
+            dot.style.width = '8px';
+            dot.style.height = '8px';
+            setTimeout(function() { dot.style.transition = 'opacity 0.6s'; }, 500);
+          }, 50);
+        }
+        break;
+
+      case 'waking':
+        // look around (small jitter)
+        dotX += (Math.random() - 0.5) * 2;
+        dotY += (Math.random() - 0.5) * 2;
+        if (stateTimer > 40 + Math.random() * 60) {
+          state = 'roaming';
+          stateTimer = 0;
+          stateDuration = 200 + Math.floor(Math.random() * 400);
+          var s = randomSpot();
+          targetX = s.x; targetY = s.y;
+        }
+        break;
+
+      case 'roaming':
+        // smooth movement toward target with personality
+        var dx = targetX - dotX, dy = targetY - dotY;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 2) {
+          vel.x += (dx / dist) * personality.speed * 0.08;
+          vel.y += (dy / dist) * personality.speed * 0.08;
+          // add some waviness
+          vel.x += Math.sin(stateTimer * 0.08) * 0.3;
+          vel.y += Math.cos(stateTimer * 0.11) * 0.25;
+        }
+        vel.x *= 0.92; vel.y *= 0.92;
+        dotX += vel.x; dotY += vel.y;
+
+        // reached target or bored?
+        if (dist < 15 || stateTimer > stateDuration) {
+          // decide next action
+          if (curiosity > 30 + Math.random() * 40 && stateTimer - lastMischief > 100) {
+            state = 'mischief';
+            stateTimer = 0;
+            curiosity = 0;
+            lastMischief = stateTimer;
+          } else if (Math.random() < 0.3) {
+            // new roam target
+            var s = randomSpot();
+            targetX = s.x; targetY = s.y;
+            stateTimer = 0;
+            stateDuration = 150 + Math.floor(Math.random() * 300);
+          } else {
+            state = 'resting';
+            stateTimer = 0;
+            stateDuration = 100 + Math.floor(Math.random() * 200);
+          }
+        }
+        break;
+
+      case 'mischief':
+        if (stateTimer === 1) {
+          // dot gets a bit brighter, eager
+          dot.style.background = '#67d4ff';
+          dot.style.filter = 'drop-shadow(0 0 8px #67d4ff) drop-shadow(0 0 16px rgba(79,195,247,0.6))';
+          doMischief();
+        }
+        // move toward the mischief target
+        var dx2 = targetX - dotX, dy2 = targetY - dotY;
+        var dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+        if (dist2 > 3) {
+          vel.x += (dx2 / dist2) * personality.speed * 0.15;
+          vel.y += (dy2 / dist2) * personality.speed * 0.15;
+        }
+        vel.x *= 0.9; vel.y *= 0.9;
+        dotX += vel.x; dotY += vel.y;
+
+        if (stateTimer > 120) {
+          // flee after mischief
+          state = 'fleeing';
+          stateTimer = 0;
+          dot.style.background = '#4fc3f7';
+          dot.style.filter = 'drop-shadow(0 0 6px #4fc3f7) drop-shadow(0 0 12px rgba(79,195,247,0.4))';
+          var flee = randomSpot();
+          targetX = flee.x; targetY = flee.y;
+        }
+        break;
+
+      case 'fleeing':
+        // fast movement away
+        var dx3 = targetX - dotX, dy3 = targetY - dotY;
+        var dist3 = Math.sqrt(dx3 * dx3 + dy3 * dy3);
+        if (dist3 > 3) {
+          vel.x += (dx3 / dist3) * personality.speed * 0.25;
+          vel.y += (dy3 / dist3) * personality.speed * 0.25;
+        }
+        vel.x *= 0.88; vel.y *= 0.88;
+        dotX += vel.x; dotY += vel.y;
+
+        if (dist3 < 20 || stateTimer > 80) {
+          if (Math.random() < 0.4) {
+            state = 'sleeping';
+            stateTimer = 0;
+          } else {
+            state = 'resting';
+            stateTimer = 0;
+            stateDuration = 60 + Math.floor(Math.random() * 150);
+          }
+        }
+        break;
+
+      case 'resting':
+        // tiny idle drift
+        dotX += Math.sin(stateTimer * 0.05) * 0.3;
+        dotY += Math.cos(stateTimer * 0.07) * 0.2;
+        if (stateTimer > stateDuration) {
+          if (Math.random() < 0.25) {
+            state = 'sleeping';
+            stateTimer = 0;
+          } else {
+            state = 'roaming';
+            stateTimer = 0;
+            stateDuration = 200 + Math.floor(Math.random() * 300);
+            var s2 = randomSpot();
+            targetX = s2.x; targetY = s2.y;
+          }
+        }
+        break;
+    }
+
+    dot.style.left = dotX + 'px';
+    dot.style.top = dotY + 'px';
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
 </script>
 
 <script>
